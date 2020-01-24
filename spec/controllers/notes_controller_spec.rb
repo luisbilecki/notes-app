@@ -81,18 +81,29 @@ RSpec.describe NotesController, type: :controller do
     end 
 
     describe 'GET #show' do
+      before :each do
+        @note = create(:note, user: @user)
+      end
+
       it 'assigns the requested note to @note' do
         note = create(:note, user: @user)
-        get :show, params: { id: note.id }
+        get :show, params: { id: @note }
 
-        expect(assigns(:note)).to eq(note)
+        expect(assigns(:note)).to eq(@note)
       end
       
       it 'renders the #show view' do
         note = create(:note, user: @user)
-        get :show, params: { id: note }
+        get :show, params: { id: @note }
         
         expect(response).to render_template(:show)
+      end
+
+      it 'redirect to index when access is denied' do
+        invalid_note = create(:note)
+        get :show, params: { id: invalid_note }
+
+        expect(response).to redirect_to(notes_path)
       end
     end 
 
@@ -126,7 +137,7 @@ RSpec.describe NotesController, type: :controller do
 
     describe 'PUT #update' do
       before :each do
-        @note = create(:note)
+        @note = create(:note, user: @user)
       end
 
       context 'with valid attributes' do
@@ -156,12 +167,19 @@ RSpec.describe NotesController, type: :controller do
           put :update, params: { id: @note.id, note: { title: nil, content: nil, date_taken: nil } }
           expect(response).to render_template(:edit)
         end
+
+        it 'redirect to index when tries to update other user note' do
+          invalid_note = create(:note)
+          put :update, params: { id: invalid_note.id, note: { title: nil, content: nil, date_taken: nil } }
+
+          expect(response).to redirect_to(notes_path)
+        end
       end
     end
 
     describe 'DELETE #destroy' do
       before :each do
-        @note = create(:note)
+        @note = create(:note, user: @user)
       end
   
       it 'deletes the note' do
@@ -173,6 +191,14 @@ RSpec.describe NotesController, type: :controller do
       it 'redirects to notes#index' do
         delete :destroy, params: { id: @note }   
         expect(response).to redirect_to(notes_path)
+      end
+
+      it 'do not delete other user note' do
+        invalid_note = create(:note)
+
+        expect {
+          delete :destroy, params: { id: invalid_note }       
+        }.to_not change(Note, :count)
       end
     end
   end
